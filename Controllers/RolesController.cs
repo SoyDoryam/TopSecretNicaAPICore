@@ -85,10 +85,9 @@ namespace TopSecretNicaAPICore.Controllers
                             });
                         }
 
-                        rol = roles.Where(item => item.RolID == idRol).FirstOrDefault();
-
-                        return StatusCode(StatusCodes.Status200OK, new { mensaje = "ok", response = rol});
                     }
+                    rol = roles.Where(item => item.RolID == idRol).FirstOrDefault();
+                    return StatusCode(StatusCodes.Status200OK, new { mensaje = "ok", response = rol});
                 }
             }
             catch (Exception error)
@@ -114,7 +113,7 @@ namespace TopSecretNicaAPICore.Controllers
                     cmd.ExecuteNonQuery();
                 }
 
-                return StatusCode(StatusCodes.Status200OK, new { mensaje= "Agregado"});
+                return StatusCode(StatusCodes.Status200OK, new { mensaje= "agregado"});
             }
             catch (Exception error)
             {
@@ -160,8 +159,8 @@ namespace TopSecretNicaAPICore.Controllers
                 {
                     conexion.Open();
                     var cmd = new SqlCommand("sp_eliminar_rol", conexion);
-                    cmd.CommandType = CommandType.StoredProcedure;
                     cmd.Parameters.AddWithValue("RolID", rolId == 0 ? DBNull.Value : rolId);
+                    cmd.CommandType = CommandType.StoredProcedure;
                     cmd.ExecuteNonQuery();
                 }
                 return StatusCode(StatusCodes.Status200OK, new { mensaje = "eliminado" });
