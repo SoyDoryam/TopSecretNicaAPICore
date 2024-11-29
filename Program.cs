@@ -1,40 +1,45 @@
 var builder = WebApplication.CreateBuilder(args);
 
-var misReglasCores = "ReglasCors";
+// Definir la política CORS
+var misReglasCores = "misReglasCores";
 
-builder.Services.AddCors(option =>
+// Agregar CORS (Con la política definida)
+builder.Services.AddCors(options =>
 {
-    option.AddPolicy(
-        name: misReglasCores, 
-        builder =>
+    options.AddPolicy(misReglasCores, builder =>
     {
         builder
-            .AllowAnyOrigin()
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+            .WithOrigins("http://localhost:3000") // Asegúrate de que el frontend esté en este origen
+            .AllowAnyMethod() // Permitir cualquier método HTTP (GET, POST, PUT, DELETE)
+            .AllowAnyHeader(); // Permitir cualquier encabezado
     });
 });
-// Add services to the container.
 
-builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializerOptions.PropertyNamingPolicy = null);
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+// Agregar servicios al contenedor
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Usar CORS antes de otras configuraciones, como UseAuthorization y MapControllers
+app.UseCors(misReglasCores); // Aquí se aplica CORS
+
+// Usar Swagger solo en el entorno de desarrollo
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-app.UseCors(misReglasCores);
 
+// Usar HTTPS, redirigiendo HTTP a HTTPS
 app.UseHttpsRedirection();
 
+// Habilitar la autorización si es necesario
 app.UseAuthorization();
 
+// Mapear los controladores de la API
 app.MapControllers();
 
+// Ejecutar la aplicación
 app.Run();

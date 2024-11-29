@@ -9,8 +9,8 @@ using System.Security.Cryptography.X509Certificates;
 namespace TopSecretNicaAPICore.Controllers
 {
     [EnableCors("misReglasCores")]
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class UsuariosController : ControllerBase
     {
         private readonly string _connectionString;
