@@ -1,131 +1,70 @@
 ﻿using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System.Data.SqlClient;
-using System.Data;
+using TopSecretNicaAPICore.Helpers;
 using TopSecretNicaAPICore.Models;
-using System.Security.Cryptography.X509Certificates;
+using TopSecretNicaAPICore.Repository.Interfaces;
 
 namespace TopSecretNicaAPICore.Controllers
 {
     [EnableCors("misReglasCores")]
-    [ApiController]
     [Route("api/[controller]")]
+    [ApiController]
     public class UsuariosController : ControllerBase
     {
-        private readonly string _connectionString;
+        private readonly IUsuariosRepository _usuariosRepository;
 
-        public UsuariosController(IConfiguration configuration)
+        public UsuariosController(IUsuariosRepository usuariosRepository)
         {
-            _connectionString = configuration.GetConnectionString("CadenaSQL");
+            _usuariosRepository = usuariosRepository;
         }
+
         [HttpGet]
         [Route("[action]")]
         public IActionResult Lista()
         {
-            List<Usuarios> usuarios = new List<Usuarios>();
-
             try
             {
-                using (var conexion = new SqlConnection(_connectionString))
-                {
-                    conexion.Open();
-                    using(var cmd = new SqlCommand("sp_lista_usuarios", conexion))
-                    {
-
-                        cmd.CommandType = CommandType.StoredProcedure;
-
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                usuarios.Add(new Usuarios
-                                {
-                                    UsuarioID = Convert.ToInt32(reader["UsuarioID"]),
-                                    Codigo = reader["Codigo"].ToString(),
-                                    Nombre = reader["Nombre"].ToString(),
-                                    Correo = reader["Correo"].ToString(),
-                                    RolID = Convert.ToInt32(reader["RolID"]),
-                                    FechaCreacion = Convert.ToDateTime(reader["FechaCreacion"]),
-                                    Estado = Convert.ToBoolean(reader["Estado"]),
-                                });
-                            }
-                        }
-                        cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-                return StatusCode(StatusCodes.Status200OK, new { mensaje = "ok", response = usuarios });
+                List<Usuarios> usuarios = _usuariosRepository.ObtenerUsuarios();
+                return StatusCode(StatusCodes.Status200OK, new { mensaje = ResponseMessages.Ok, response = usuarios });
             }
             catch (Exception error)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = error.Message, response = usuarios });
+                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = error.Message });
             }
         }
+
         [HttpGet]
         [Route("[action]")]
         public IActionResult Obtener(int id)
         {
-            List<Usuarios> Lista = new List<Usuarios>();
-            Usuarios usuario = new Usuarios();
             try
             {
-                using (var conexion = new SqlConnection(_connectionString))
+                Usuarios usuario = _usuariosRepository.ObtenerUsuarioPorId(id);
+                if (usuario == null)
                 {
-                    conexion.Open();
-                    using (var cmd = new SqlCommand("sp_lista_usuarios", conexion))
-                    {
-                        cmd.CommandType = CommandType.StoredProcedure;
-                        using (var reader = cmd.ExecuteReader()) 
-                        {
-                            while (reader.Read())
-                            {
-                                Lista.Add(new Usuarios
-                                {
-                                    UsuarioID = Convert.ToInt32(reader["UsuarioID"]),
-                                    Codigo = reader["Codigo"].ToString(),
-                                    Nombre = reader["Nombre"].ToString(),
-                                    Correo = reader["Correo"].ToString(),
-                                    RolID = Convert.ToInt32(reader["RolID"]),
-                                    FechaCreacion = Convert.ToDateTime(reader["FechaCreacion"]),
-                                    Estado = Convert.ToBoolean(reader["Estado"]),
-                                });
-                            }      
-                        }
-                    }
+                    return NotFound(new { mensaje = "Usuario no encontrado" });
                 }
-                usuario = Lista.Where(item => item.UsuarioID == id).FirstOrDefault();
-                return StatusCode(StatusCodes.Status200OK, new { mensaje = "ok", usuario = usuario });
+                return StatusCode(StatusCodes.Status200OK, new { mensaje = ResponseMessages.Ok, usuario = usuario });
             }
             catch (Exception error)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = error.Message, usuario = usuario });
+                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = error.Message });
             }
         }
+
         [HttpPost]
         [Route("[action]")]
-        public IActionResult Guardar([FromBody]Usuarios usuarios)
-            {
+        public IActionResult Guardar([FromBody] Usuarios usuario)
+        {
             try
             {
-                using (var conexion = new SqlConnection(_connectionString))
+                bool resultado = _usuariosRepository.GuardarUsuario(usuario);
+                if (resultado)
                 {
-                    conexion.Open();
-                    using (var cmd = new SqlCommand("sp_guardar_usuario", conexion))
-                    {
-                        cmd.Parameters.AddWithValue("Nombre", usuarios.Nombre);
-                        cmd.Parameters.AddWithValue("Correo", usuarios.Correo);
-                        cmd.Parameters.AddWithValue("contraseña", usuarios.Password);
-                        cmd.Parameters.AddWithValue("RolID", usuarios.RolID);
-                        cmd.Parameters.AddWithValue("Estado", usuarios.Estado);
-                        cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.ExecuteNonQuery();
-
-                    }
-                    conexion.Close();
+                    return StatusCode(StatusCodes.Status200OK, new { mensaje = ResponseMessages.Added});
                 }
-
-                return StatusCode(StatusCodes.Status200OK, new { mensaje = "agregado"  });
+                return StatusCode(StatusCodes.Status400BadRequest, new { mensaje = "No se pudo agregar el usuario" });
             }
             catch (Exception error)
             {
@@ -135,31 +74,20 @@ namespace TopSecretNicaAPICore.Controllers
 
         [HttpPut]
         [Route("[action]")]
-        public IActionResult Editar([FromBody]Usuarios usuarios)
+        public IActionResult Editar([FromBody] Usuarios usuario)
         {
             try
             {
-                using (var conexion = new SqlConnection(_connectionString))
+                bool resultado = _usuariosRepository.EditarUsuario(usuario);
+                if (resultado)
                 {
-                    conexion.Open();    
-                    using (var cmd = new SqlCommand("sp_editar_usuario", conexion))
-                    {
-                        cmd.Parameters.AddWithValue("UsuarioID", usuarios.UsuarioID);
-                        cmd.Parameters.AddWithValue("Nombre", usuarios.Nombre);
-                        cmd.Parameters.AddWithValue("Correo", usuarios.Correo);
-                        cmd.Parameters.AddWithValue("contraseña", usuarios.Password);
-                        cmd.Parameters.AddWithValue("RolID", usuarios.RolID);
-                        cmd.Parameters.AddWithValue("Estado", usuarios.Estado);
-                        cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.ExecuteNonQuery();
-                    }
-                    conexion.Close();
+                    return StatusCode(StatusCodes.Status200OK, new { mensaje = ResponseMessages.Edited });
                 }
-                return StatusCode(StatusCodes.Status200OK, new { mensaje = "Editado" });
+                return StatusCode(StatusCodes.Status400BadRequest, new { mensaje = "No se pudo editar el usuario" });
             }
             catch (Exception error)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError,new { mensaje = error.Message });
+                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = error.Message });
             }
         }
 
@@ -169,18 +97,12 @@ namespace TopSecretNicaAPICore.Controllers
         {
             try
             {
-                using (var conexion = new SqlConnection(_connectionString))
+                bool resultado = _usuariosRepository.EliminarUsuario(id);
+                if (resultado)
                 {
-                    conexion.Open();
-                    using (var cmd = new SqlCommand("sp_eliminar_usuario", conexion))
-                    {
-                        cmd.Parameters.AddWithValue("usuarioID", id);
-                        cmd.CommandType = CommandType.StoredProcedure;
-                        cmd.ExecuteNonQuery();
-                    }
-                    conexion.Close();
+                    return StatusCode(StatusCodes.Status200OK, new { mensaje = ResponseMessages.Deleted  });
                 }
-                return StatusCode(StatusCodes.Status200OK, new { mensaje = "eliminado" });
+                return StatusCode(StatusCodes.Status400BadRequest, new { mensaje = "No se pudo eliminar el usuario" });
             }
             catch (Exception error)
             {

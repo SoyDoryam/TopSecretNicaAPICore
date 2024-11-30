@@ -4,6 +4,7 @@ using TopSecretNicaAPICore.Models;
 using System.Data;
 using System.Data.SqlClient;
 using Microsoft.AspNetCore.Cors;
+using TopSecretNicaAPICore.Repository.Interfaces;
 
 namespace TopSecretNicaAPICore.Controllers
 {
@@ -12,108 +13,63 @@ namespace TopSecretNicaAPICore.Controllers
     [ApiController]
     public class RolesController : ControllerBase
     {
-        private readonly string cadenaSQL;
+        private readonly IRolesRepository _rolesRepository;
 
-        public RolesController(IConfiguration configuration)
+        public RolesController(IRolesRepository rolesRepository)
         {
-            cadenaSQL = configuration.GetConnectionString("CadenaSQL");
+            _rolesRepository = rolesRepository;
         }
 
         [HttpGet]
         [Route("Lista")]
         public IActionResult Lista()
         {
-            List<Roles> roles = new List<Roles>();
+            List<Roles> roles;
 
             try
             {
-                using (var conexion = new SqlConnection(cadenaSQL))
-                {
-                    conexion.Open();
-                    var cmd = new SqlCommand("sp_lista_rol", conexion);
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    using (var rd = cmd.ExecuteReader())
-                    {
-                        while (rd.Read())
-                        {
-                            roles.Add(new Roles 
-                            { 
-                                RolID = Convert.ToInt32(rd["RolID"]),
-                                Codigo = rd["Codigo"].ToString(),
-                                Nombre = rd["Nombre"].ToString(),
-                                Descripcion = rd["Descripcion"].ToString(),
-                                Estado = Convert.ToBoolean(rd["Estado"]),
-                            });
-                        }
-                    }
-                }
-                return StatusCode(StatusCodes.Status200OK, new { mensaje = "ok", response = roles });
-
+                roles = _rolesRepository.ObtenerRoles();
+                return Ok(new { mensaje = "ok", response = roles });
             }
             catch (Exception error)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = error.Message, response = roles });
+                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = error.Message });
             }
         }
 
         [HttpGet]
         [Route("[action]/{idRol:int}")]
-
-        public IActionResult Obtener(int idRol) 
+        public IActionResult Obtener(int idRol)
         {
-            List<Roles> roles = new List<Roles>();
-            Roles rol = new Roles();
+            Roles rol;
 
             try
             {
-                using (var conexion = new SqlConnection(cadenaSQL))
+                rol = _rolesRepository.ObtenerRolPorId(idRol);
+                if (rol == null)
                 {
-                    conexion.Open();
-                    var cmd = new SqlCommand("sp_lista_rol", conexion);
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    using (var rd = cmd.ExecuteReader())
-                    {
-                        while (rd.Read())
-                        {
-                            roles.Add(new Roles
-                            {
-                                RolID = Convert.ToInt32(rd["RolID"]),
-                                Codigo = rd["Codigo"].ToString(),
-                                Nombre = rd["Nombre"].ToString(),
-                                Descripcion = rd["Descripcion"].ToString(),
-                                Estado = Convert.ToBoolean(rd["Estado"]),
-                            });
-                        }
-
-                    }
-                    rol = roles.Where(item => item.RolID == idRol).FirstOrDefault();
-                    return StatusCode(StatusCodes.Status200OK, new { mensaje = "ok", response = rol});
+                    return NotFound(new { mensaje = "Rol no encontrado" });
                 }
+                return Ok(new { mensaje = "ok", response = rol });
             }
             catch (Exception error)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = error.Message, response = rol });
+                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = error.Message });
             }
         }
 
         [HttpPost]
         [Route("[action]")]
-        public IActionResult Guardar([FromBody]Roles roles)
+        public IActionResult Guardar([FromBody] Roles roles)
         {
             try
             {
-                using (var conexion = new SqlConnection(cadenaSQL))
+                bool resultado = _rolesRepository.GuardarRol(roles);
+                if (resultado)
                 {
-                    conexion.Open();
-                    var cmd = new SqlCommand("sp_guardar_rol", conexion);
-                    cmd.Parameters.AddWithValue("Nombre", roles.Nombre);
-                    cmd.Parameters.AddWithValue("Descripcion", roles.Descripcion);
-                    cmd.Parameters.AddWithValue("Estado", roles.Estado);
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.ExecuteNonQuery();
+                    return Ok(new { mensaje = "agregado" });
                 }
-
-                return StatusCode(StatusCodes.Status200OK, new { mensaje= "agregado"});
+                return StatusCode(StatusCodes.Status400BadRequest, new { mensaje = "No se pudo agregar el rol" });
             }
             catch (Exception error)
             {
@@ -123,29 +79,20 @@ namespace TopSecretNicaAPICore.Controllers
 
         [HttpPut]
         [Route("[action]")]
-        public IActionResult Editar([FromBody]Roles roles)
+        public IActionResult Editar([FromBody] Roles roles)
         {
             try
             {
-                using (var conexion = new SqlConnection(cadenaSQL))
+                bool resultado = _rolesRepository.EditarRol(roles);
+                if (resultado)
                 {
-                    conexion.Open();
-                    var cmd = new SqlCommand("sp_editar_rol", conexion);
-                    cmd.Parameters.AddWithValue("RolID", roles.RolID == 0 ? DBNull.Value : roles.RolID);
-                    cmd.Parameters.AddWithValue("Nombre", roles.Nombre is null ? DBNull.Value : roles.Nombre);
-                    cmd.Parameters.AddWithValue("Descripcion", roles.Descripcion is null ? DBNull.Value : roles.Descripcion);
-                    cmd.Parameters.AddWithValue("Estado", roles.Estado);
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.ExecuteNonQuery();
+                    return Ok(new { mensaje = "editado" });
                 }
-                return StatusCode(StatusCodes.Status200OK, new { mensaje = "editado" });
+                return StatusCode(StatusCodes.Status400BadRequest, new { mensaje = "No se pudo editar el rol" });
             }
             catch (Exception error)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new
-                {
-                    mensaje = error.Message
-                });
+                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = error.Message });
             }
         }
 
@@ -155,22 +102,16 @@ namespace TopSecretNicaAPICore.Controllers
         {
             try
             {
-                using (var conexion = new SqlConnection(cadenaSQL))
+                bool resultado = _rolesRepository.EliminarRol(rolId);
+                if (resultado)
                 {
-                    conexion.Open();
-                    var cmd = new SqlCommand("sp_eliminar_rol", conexion);
-                    cmd.Parameters.AddWithValue("RolID", rolId == 0 ? DBNull.Value : rolId);
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.ExecuteNonQuery();
+                    return Ok(new { mensaje = "eliminado" });
                 }
-                return StatusCode(StatusCodes.Status200OK, new { mensaje = "eliminado" });
+                return StatusCode(StatusCodes.Status400BadRequest, new { mensaje = "No se pudo eliminar el rol" });
             }
             catch (Exception error)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new
-                {
-                    mensaje = error.Message
-                });
+                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = error.Message });
             }
         }
     }

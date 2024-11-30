@@ -1,3 +1,9 @@
+using TopSecretNicaAPICore.Models;
+using TopSecretNicaAPICore.Repository.Interfaces;
+using TopSecretNicaAPICore.Repository;
+using Microsoft.EntityFrameworkCore;
+using TopSecretNicaAPICore.Repositories;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Definir la política CORS
@@ -9,11 +15,23 @@ builder.Services.AddCors(options =>
     options.AddPolicy(misReglasCores, builder =>
     {
         builder
-            .WithOrigins("http://localhost:3000") // Asegúrate de que el frontend esté en este origen
+            .WithOrigins("http://localhost:3000", "http://192.168.0.2:3000") // Asegúrate de que el frontend esté en este origen
             .AllowAnyMethod() // Permitir cualquier método HTTP (GET, POST, PUT, DELETE)
             .AllowAnyHeader(); // Permitir cualquier encabezado
     });
 });
+
+
+// Configurar el DbContext para que use la cadena de conexión
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("CadenaSQL"))
+);
+
+// Registrar el repositorio
+builder.Services.AddScoped<IMarcasRepository, MarcasRepository>();
+builder.Services.AddScoped<IRolesRepository, RolesRepository>();
+builder.Services.AddScoped<IUsuariosRepository, UsuariosRepository>();
+builder.Services.AddScoped<ICategoriasRepository, CategoriasRepository>();
 
 // Agregar servicios al contenedor
 builder.Services.AddControllers();
