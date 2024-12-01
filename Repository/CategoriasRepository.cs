@@ -53,7 +53,7 @@ namespace TopSecretNicaAPICore.Repository
                 await connection.OpenAsync();
                 var result = await connection.ExecuteAsync(
                     "sp_editar_categoria",
-                    new
+                    new Categorias
                     {
                         CategoriaID = categoria.CategoriaID,
                         Nombre = categoria.Nombre,
